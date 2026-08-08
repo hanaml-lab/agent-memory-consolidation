@@ -1,0 +1,13 @@
+# Settings used for the LoCoMo / LongMemEval_S experiments in the paper (Appendix A).
+# The benchmark harness that calls hosted LLMs is not part of this reference release.
+reader: gpt-4o-mini
+judge: gpt-4o
+embedding: BAAI/bge-small-en-v1.5
+retrieval: {top_k: 10, fusion: rrf, graph_hops: 1}
+schedule: {budget: 0.40, cycle: 2, delta: 16}
+voc: {lam_g: 0.15, lam_c: 0.60, lam_s: 0.02}
+forget: {eps_f: 0.04, eps_c: 0.10, min_age: 6}
+hazard: {hidden: [1024, 1024], d_emb: 64, lr: 3.0e-4, weight_decay: 0.01, batch: 512, steps: 3000}
+probes_per_session: 8
+lora_tier: {enabled: false, rank: 16, alpha: 32, lr: 1.0e-4, anchor: 1.0e-3, every_cycles: 4}
+seeds: [0, 1, 2, 3, 4]

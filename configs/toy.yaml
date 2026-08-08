@@ -1,0 +1,6 @@
+# End-to-end toy run (CPU, < 10 s)
+stream: {n_sessions: 60, units_per_session: 12, n_slots: 40, d: 8}
+schedule: {cycle: 2, delta: 16}
+budgets: [0.1, 0.25, 0.4, 0.6, 1.0]
+policies: [eager, tide, recency, random]
+seeds: [0, 1, 2]
