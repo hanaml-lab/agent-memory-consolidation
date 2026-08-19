@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper."
+title: "TIDE: Hazard-Scheduled, Budget-Constrained Memory Consolidation for Long-Horizon LLM Agents"
+authors:
+  - family-names: Agarwal
+    given-names: Manav
+    affiliation: hanaML
+version: 0.1.0
+date-released: 2026-08-19
+license: Apache-2.0
+repository-code: "https://github.com/hanaml-lab/agent-memory-consolidation"
+preferred-citation:
+  type: report
+  title: "TIDE: Hazard-Scheduled, Budget-Constrained Memory Consolidation for Long-Horizon LLM Agents"
+  authors:
+    - family-names: Agarwal
+      given-names: Manav
+  institution:
+    name: hanaML
+  year: 2026
