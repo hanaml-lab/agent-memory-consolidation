@@ -1,0 +1,12 @@
+{"id": 0, "session": 0, "text": "I live in Berlin.", "entities": ["Berlin"], "tokens": 90, "slot": ["user", "lives_in"], "value": "Berlin", "p_access": 0.62}
+{"id": 1, "session": 0, "text": "I work at Quill as an analyst.", "entities": ["Quill"], "tokens": 110, "slot": ["user", "works_at"], "value": "Quill", "p_access": 0.71}
+{"id": 2, "session": 1, "text": "Lovely weather today, we walked by the river.", "entities": ["river"], "tokens": 140, "slot": null, "value": null, "p_access": 0.03}
+{"id": 3, "session": 1, "text": "My manager is Ana.", "entities": ["Ana"], "tokens": 80, "slot": ["user", "manager"], "value": "Ana", "p_access": 0.44}
+{"id": 4, "session": 2, "text": "I train at the Atlas gym on Mondays.", "entities": ["Atlas"], "tokens": 120, "slot": ["user", "gym"], "value": "Atlas", "p_access": 0.38}
+{"id": 5, "session": 3, "text": "Ana asked me to review the Quill budget.", "entities": ["Ana", "Quill"], "tokens": 160, "slot": null, "value": null, "p_access": 0.27}
+{"id": 6, "session": 3, "text": "Thinking about pizza for dinner.", "entities": ["pizza"], "tokens": 70, "slot": null, "value": null, "p_access": 0.02}
+{"id": 7, "session": 4, "text": "I moved to Lisbon last week.", "entities": ["Lisbon"], "tokens": 100, "slot": ["user", "lives_in"], "value": "Lisbon", "p_access": 0.66}
+{"id": 8, "session": 5, "text": "My new manager is Ben.", "entities": ["Ben"], "tokens": 90, "slot": ["user", "manager"], "value": "Ben", "p_access": 0.52}
+{"id": 9, "session": 5, "text": "The Lisbon office is near the station.", "entities": ["Lisbon", "Quill"], "tokens": 130, "slot": null, "value": null, "p_access": 0.21}
+{"id": 10, "session": 6, "text": "Watched a film about sailing.", "entities": ["film"], "tokens": 110, "slot": null, "value": null, "p_access": 0.04}
+{"id": 11, "session": 7, "text": "Still at Quill, now leading the analytics team.", "entities": ["Quill"], "tokens": 140, "slot": ["user", "works_at"], "value": "Quill", "p_access": 0.58}
