@@ -21,14 +21,18 @@ def schedule_cycle(units: list[MemoryUnit], p: dict[int, float], kappa: dict[int
     for u in units:
         ef, ec, amin = forget_eps
         act[u.uid] = Action.FORGET if (p[u.uid] < ef and chi[u.uid] < ec and now - u.created >= amin) else Action.KEEP
-    val = lambda u, a: value_of_consolidation(p[u.uid], kappa[u.uid], chi[u.uid], a, w, allow_lora)
+
+    def val(u, a):
+        return value_of_consolidation(p[u.uid], kappa[u.uid], chi[u.uid], a, w, allow_lora)
+
     heap = []
     by_id = {u.uid: u for u in units}
 
     def push(u):
         cur = act[u.uid]
         for a in UPGRADES:
-            dv = val(u, a) - val(u, cur); dc = u.cost(a) - u.cost(cur)
+            dv = val(u, a) - val(u, cur)
+            dc = u.cost(a) - u.cost(cur)
             if dv > 0 and dc > 0:
                 heapq.heappush(heap, (-dv / dc, u.uid, a.value, cur.value))
     for u in units:
@@ -41,5 +45,7 @@ def schedule_cycle(units: list[MemoryUnit], p: dict[int, float], kappa: dict[int
             continue
         dc = u.cost(a) - u.cost(base)
         if spent + dc <= cap + 1e-12:
-            spent += dc; act[uid] = a; push(u)
+            spent += dc
+            act[uid] = a
+            push(u)
     return act, spent, eager

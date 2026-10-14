@@ -8,7 +8,8 @@ def _units(n=20):
 
 def test_budget_respected():
     us = _units()
-    p = {u.uid: (u.uid + 1) / 20 for u in us}; z = {u.uid: 0.0 for u in us}
+    p = {u.uid: (u.uid + 1) / 20 for u in us}
+    z = {u.uid: 0.0 for u in us}
     for b in [0.0, 0.1, 0.4, 1.0]:
         act, spent, eager = schedule_cycle(us, p, z, z, b)
         assert spent <= b * eager + 1e-9
@@ -16,7 +17,8 @@ def test_budget_respected():
 
 def test_high_access_units_upgraded_first():
     us = _units()
-    p = {u.uid: (u.uid + 1) / 20 for u in us}; z = {u.uid: 0.0 for u in us}
+    p = {u.uid: (u.uid + 1) / 20 for u in us}
+    z = {u.uid: 0.0 for u in us}
     act, _, _ = schedule_cycle(us, p, z, z, 0.3)
     up = [u for u, a in act.items() if a is not Action.KEEP]
     kept = [u for u, a in act.items() if a is Action.KEEP]
@@ -25,7 +27,9 @@ def test_high_access_units_upgraded_first():
 
 def test_conflict_term_buys_graph():
     us = _units(2)
-    p = {0: 0.01, 1: 0.01}; k = {0: 0.0, 1: 0.0}; chi = {0: 1.0, 1: 0.0}
+    p = {0: 0.01, 1: 0.01}
+    k = {0: 0.0, 1: 0.0}
+    chi = {0: 1.0, 1: 0.0}
     act, _, _ = schedule_cycle(us, p, k, chi, 0.5)
     assert act[0] is Action.GRAPH and act[1] is not Action.GRAPH
 

@@ -8,8 +8,8 @@ import numpy as np
 
 RNG = np.random.default_rng(20261013)
 SEEDS = 5
-OUT = os.environ.get("TIDE_OUT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "results"))
-os.makedirs(f"{OUT}/tables", exist_ok=True); os.makedirs(f"{OUT}/figures", exist_ok=True)
+OUT = os.path.dirname(os.path.abspath(__file__))
+os.makedirs(f"{OUT}/tables", exist_ok=True)
 EAGER_TOK = 41.3  # thousand LLM tokens spent on consolidation per session by the eager graph baseline
 
 
