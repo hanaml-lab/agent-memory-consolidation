@@ -19,7 +19,7 @@ class ToyStream:
 
     def generate(self):
         r = np.random.default_rng(self.seed)
-        slot_names = [(f"user", f"attr{i}") for i in range(self.n_slots)]
+        slot_names = [("user", f"attr{i}") for i in range(self.n_slots)]
         popularity = r.dirichlet(np.ones(self.n_slots) * 0.4)
         units, uid = [], 0
         for s in range(self.n_sessions):
@@ -28,7 +28,8 @@ class ToyStream:
                 slot = slot_names[r.choice(self.n_slots, p=popularity)] if is_fact else None
                 user = r.random() < 0.6
                 x = r.normal(0, 1, self.d)
-                x[0] = float(user); x[1] = float(is_fact)
+                x[0] = float(user)
+                x[1] = float(is_fact)
                 x[2] = np.log(popularity[int(slot[1][4:])] * self.n_slots) if slot else -2.0
                 units.append(MemoryUnit(uid, f"u{uid}", (slot[1],) if slot else (f"misc{uid % 7}",), s, x,
                                         n_tokens=int(r.integers(80, 400)), slot=slot,
@@ -43,17 +44,21 @@ class ToyStream:
 def _simulate_access(stream, units, horizon, rng):
     X = np.stack([u.features for u in units])
     lam = 1 / (1 + np.exp(-stream.access_logits(X)))
-    k = rng.geometric(np.clip(lam, 1e-3, 1)); d = (k <= horizon).astype(int)
+    k = rng.geometric(np.clip(lam, 1e-3, 1))
+    d = (k <= horizon).astype(int)
     return X, np.minimum(k, horizon), d
 
 
-def run_toy(budget: float = 0.4, policy: str = "tide", seed: int = 0, cycle: int = 2, delta: int = 16, verbose: bool = False):
-    """Run a full stream; returns dict with accuracy on current-value queries, spent fraction, AUROC."""
-    stream = ToyStream(seed=seed)
+def run_toy(budget: float = 0.4, policy: str = "tide", seed: int = 0, cycle: int = 2, delta: int = 16, verbose: bool = False,
+            stream: dict | None = None):
+    """Run a full stream; returns dict with accuracy on current-value queries, spent fraction, AUROC.
+    ``stream`` overrides ToyStream's sizes (n_sessions, units_per_session, n_slots, d)."""
+    shape = dict(stream or {})
+    stream = ToyStream(seed=seed, **shape)
     units, slots, pop = stream.generate()
     rng = np.random.default_rng(seed + 1)
     # train hazard on a separate replay (probe-access simulation), never on eval queries
-    tr_units, _, _ = ToyStream(seed=seed + 100).generate()
+    tr_units, _, _ = ToyStream(seed=seed + 100, **shape).generate()
     Xtr, ktr, dtr = _simulate_access(stream, tr_units, 32, rng)
     hz = HazardModel(stream.d, max_k=32, seed=seed)
     hz.fit(Xtr, ktr, dtr, steps=250)
@@ -84,10 +89,12 @@ def run_toy(budget: float = 0.4, policy: str = "tide", seed: int = 0, cycle: int
         b = 1e9 if policy == "eager" else budget
         act, spent, eager = schedule_cycle(pending, p, kap, chi, b, now=s)
         if policy == "eager":
-            act = {u.uid: Action.GRAPH for u in pending}; spent = eager
+            act = {u.uid: Action.GRAPH for u in pending}
+            spent = eager
         for u in sorted(pending, key=lambda u: u.created):
             store.apply(u, act[u.uid])
-        spent_tot += spent; eager_tot += eager
+        spent_tot += spent
+        eager_tot += eager
         pending = []
     # queries: current value of popular slots
     truth = {}

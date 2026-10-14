@@ -1,6 +1,6 @@
-# End-to-end toy run (CPU, < 10 s)
+# CPU toy stream for python -m tide.demo (src/tide/sim.py): runs in well under a minute.
 stream: {n_sessions: 60, units_per_session: 12, n_slots: 40, d: 8}
-schedule: {cycle: 2, delta: 16}
-budgets: [0.1, 0.25, 0.4, 0.6, 1.0]
+schedule: {cycle: 2, delta: 16}       # consolidate every 2 sessions; access horizon of 16 sessions
+budgets: [0.1, 0.25, 0.4, 0.6, 1.0]   # share of the tokens eager consolidation spends
 policies: [eager, tide, recency, random]
 seeds: [0, 1, 2]

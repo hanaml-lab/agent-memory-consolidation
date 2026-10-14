@@ -16,6 +16,9 @@ dependencies = ["numpy>=1.24", "pyyaml>=6"]
 paper = ["matplotlib>=3.7"]
 dev = ["pytest>=7"]
 
+[project.scripts]
+tide-demo = "tide.demo:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
