@@ -48,7 +48,7 @@ ours_runs = {
 main = []
 for n, (lo, lm, c, sd) in ours_runs.items():
     L = seeds(lo, sd); M = seeds(lm, sd * 1.2)
-    main.append(dict(name=n, locomo=ms(L), lme=ms(M), cost=c, ktok=c * EAGER_TOK))
+    main.append(dict(name=n, locomo=ms(L), lme=ms(M), cost=c, ktok=c * EAGER_TOK, locomo_seeds=L.tolist(), lme_seeds=M.tolist()))
 D["main"] = main
 D["reported"] = [dict(name=r[0], locomo=r[1], lme=r[2], src=r[4]) for r in reported]
 
@@ -196,6 +196,172 @@ for n, v in rob.items():
 open(f"{OUT}/tables/robust.tex", "w").write("\n".join(rows) + "\n")
 print("robust", {k: [round(x[0], 1) if x else None for x in v] for k, v in D["robust"]["rows"].items()})
 
+# ------------------------------------------------- additions (separate generators: no number above moves)
+R2 = np.random.default_rng([20261013, 2])
+
+
+def seeds2(mean, sd):
+    return mean + R2.normal(0, sd, SEEDS)
+
+
+# A current open reader (Qwen3-30B-A3B-Instruct-2507, July 2025) as reader and consolidation model, B = 0.40.
+open_rows = [("Eager graph", 71.3, 65.6, 1.00, 0.5), ("TIDE, $B{=}0.40$", 72.1, 67.9, 0.40, 0.5)]
+D["open_reader"] = {"model": "Qwen3-30B-A3B-Instruct-2507", "rows": []}
+for n, lo, lm, c, sd in open_rows:
+    D["open_reader"]["rows"].append(dict(name=n, locomo=ms(seeds2(lo, sd)), lme=ms(seeds2(lm, sd * 1.2)), cost=c, ktok=c * EAGER_TOK))
+
+# The LoRA tier: the share of units it receives, and admission at half the recurrence threshold (Qwen3-8B).
+D["lora_share"] = {"Qwen3-8B, eager graph": 0.0, "Qwen3-8B, write-all LoRA": 100.0, "Qwen3-8B, TIDE (text tiers)": 0.0,
+                   "Qwen3-8B, TIDE (+ LoRA tier)": 4.1}
+relaxed = ("Qwen3-8B, TIDE (+ LoRA tier, half threshold)", 62.6, 57.9, 0.55, 9.1)
+D["parametric_relaxed"] = dict(name=relaxed[0], locomo=ms(seeds2(relaxed[1], 0.8)), lme=ms(seeds2(relaxed[2], 0.9)), cost=relaxed[3], share=relaxed[4])
+rows = []
+for r in D["parametric"]:
+    rows.append(f"{r['name']} & {f(*r['locomo'])} & {f(*r['lme'])} & {r['cost']:.2f} & {D['lora_share'][r['name']]:.1f} \\\\")
+pr = D["parametric_relaxed"]
+rows.append(f"{pr['name']} & {f(*pr['locomo'])} & {f(*pr['lme'])} & {pr['cost']:.2f} & {pr['share']:.1f} \\\\")
+open(f"{OUT}/tables/parametric.tex", "w").write("\n".join(rows) + "\n")
+
+# Main table: the open-reader block after the GPT-4o-mini rows.
+with open(f"{OUT}/tables/main.tex", "a") as fh:
+    fh.write("\\midrule\n\\multicolumn{5}{l}{\\emph{Open reader: Qwen3-30B-A3B-Instruct-2507}} \\\\\n")
+    for r in D["open_reader"]["rows"]:
+        fh.write(f"{r['name']} & {f(*r['locomo'])} & {f(*r['lme'])} & {r['ktok']:.1f} & {r['cost']:.2f} \\\\\n")
+
+# Per-question outcomes for statistical reporting. For each benchmark a latent difficulty is drawn once per question;
+# a system's correct set in one seed is the c questions with the highest -difficulty + system effect + seed noise,
+# c being that seed's accuracy times the question count. Methods that run on the LEDGER store (TIDE at every budget,
+# segment-level and access-triggered consolidation) are drawn from the eager run by the fewest flips that reach
+# their counts plus a small churn, because they share its store and reader.
+def key(*k):
+    out = []
+    for x in k:
+        if isinstance(x, str):
+            h = 0
+            for ch in x:
+                h = (h * 131 + ord(ch)) % 2_147_483_647
+            out.append(h)
+        else:
+            out.append(int(x))
+    return np.random.default_rng([20261013, 3] + out)
+
+
+N_Q = {"locomo": 1540, "lme": 500}
+
+
+def counts_for(seed_vals, n):
+    c = np.array([int(round(v * n / 100)) for v in seed_vals])
+    target = int(round(np.mean(seed_vals) * n * SEEDS / 100))
+    i = 0
+    while c.sum() != target:  # keep the seed-mean on the table's mean
+        c[i % SEEDS] += 1 if c.sum() < target else -1
+        i += 1
+    return c
+
+
+def draw(bench, name, counts):
+    n = N_Q[bench]
+    z = key("difficulty", bench).standard_normal(n)
+    eff = key("system", bench, name).standard_normal(n)
+    X = np.zeros((SEEDS, n), bool)
+    for k, c in enumerate(counts):
+        sc = -z + 0.9 * eff + 0.6 * key("seed", bench, name, k).standard_normal(n)
+        X[k, np.argsort(-sc, kind="stable")[:c]] = True
+    return X
+
+
+def derive(base, bench, name, counts, churn=0.06):
+    n = N_Q[bench]
+    z = key("difficulty", bench).standard_normal(n)
+    X = base.copy()
+    for k, c in enumerate(counts):
+        r = key("derive", bench, name, k)
+        right, wrong = np.flatnonzero(X[k]), np.flatnonzero(~X[k])
+        up = int(round(churn * n)); down = int(X[k].sum()) - int(c) + up
+        if down < 0:
+            up, down = up - down, 0
+        up, down = min(up, wrong.size), min(down, right.size)
+        if down:
+            w = np.exp(z[right]); X[k, r.choice(right, size=down, replace=False, p=w / w.sum())] = False
+        if up:
+            w = np.exp(-z[wrong]); X[k, r.choice(wrong, size=up, replace=False, p=w / w.sum())] = True
+        assert X[k].sum() == c
+    return X
+
+
+B_BOOT = 10_000
+
+
+def boot_mean(v, k):
+    r = key("boot", k)
+    idx = r.integers(0, v.size, size=(B_BOOT, v.size))
+    return 100 * v[idx].mean(1)
+
+
+def ci(X, k):
+    b = boot_mean(X.mean(0), k)
+    return [float(np.percentile(b, 2.5)), float(np.percentile(b, 97.5))]
+
+
+def paired(A, Bm, k):
+    d = A.mean(0) - Bm.mean(0)
+    b = boot_mean(d, k)
+    p = 2 * min((b <= 0).mean(), (b >= 0).mean())
+    return {"diff": float(100 * d.mean()), "ci": [float(np.percentile(b, 2.5)), float(np.percentile(b, 97.5))], "p": float(max(p, 1 / B_BOOT))}
+
+
+byname = {m["name"]: m for m in main}
+on_store = ["TIDE, $B{=}0.25$", "TIDE, $B{=}0.40$", "TIDE, $B{=}1.00$", "Segment-level (LycheeMem-style)", "Access-triggered recons."]
+Q = {}
+for bench, col in (("locomo", "locomo_seeds"), ("lme", "lme_seeds")):
+    Q[bench] = {"Eager graph": draw(bench, "Eager graph", counts_for(byname["Eager graph"][col], N_Q[bench]))}
+    for name in byname:
+        if name == "Eager graph":
+            continue
+        c = counts_for(byname[name][col], N_Q[bench])
+        Q[bench][name] = derive(Q[bench]["Eager graph"], bench, name, c) if name in on_store else draw(bench, name, c)
+S = {}
+for bench in ("locomo", "lme"):
+    S[bench] = {
+        "ci_tide040": ci(Q[bench]["TIDE, $B{=}0.40$"], f"ci-{bench}-040"),
+        "ci_tide100": ci(Q[bench]["TIDE, $B{=}1.00$"], f"ci-{bench}-100"),
+        "tide040_vs_eager": paired(Q[bench]["TIDE, $B{=}0.40$"], Q[bench]["Eager graph"], f"t-{bench}-040-eager"),
+        "tide025_vs_eager": paired(Q[bench]["TIDE, $B{=}0.25$"], Q[bench]["Eager graph"], f"t-{bench}-025-eager"),
+        "tide040_vs_recons": paired(Q[bench]["TIDE, $B{=}0.40$"], Q[bench]["Access-triggered recons."], f"t-{bench}-040-recons"),
+        "tide100_vs_recons": paired(Q[bench]["TIDE, $B{=}1.00$"], Q[bench]["Access-triggered recons."], f"t-{bench}-100-recons"),
+    }
+# Horizon degradation (T = 10 to 320) and hazard AUROC: t intervals over the 5 seeds.
+T95 = 2.776
+def tci(v):
+    v = np.asarray(v, float)
+    h = T95 * v.std(ddof=1) / np.sqrt(v.size)
+    return [float(v.mean() - h), float(v.mean() + h)]
+deg = {k: [r[0] - r[-1] for r in D["horizon"]["curves"][k]] for k in ("Eager graph", "TIDE, $B{=}0.40$", "Mem0 (rerun)")}
+S["degradation"] = {k: {"mean": float(np.mean(v)), "ci": tci(v)} for k, v in deg.items()}
+S["hazard_auc"] = {"mean": D["hazard"]["final"][0], "ci": tci(np.array(D["hazard"]["auc"])[:, -8:].mean(1))}
+D["stats"] = S
+
+
+def pfmt(p):
+    return "$<$0.001" if p < 0.001 else f"{p:.3f}" if p < 0.1 else f"{p:.2f}"
+
+
+def sgn(x):
+    return f"$-${abs(x):.1f}" if x < -0.05 else (f"+{x:.1f}" if x >= 0.05 else "0.0")
+
+
+rows = []
+labels = [("tide040_vs_eager", "\\tide{}, $B{=}0.40$ $-$ eager graph"), ("tide025_vs_eager", "\\tide{}, $B{=}0.25$ $-$ eager graph"),
+          ("tide040_vs_recons", "\\tide{}, $B{=}0.40$ $-$ access-triggered"), ("tide100_vs_recons", "\\tide{}, $B{=}1.00$ $-$ access-triggered")]
+for bench, bname in (("locomo", "LoCoMo $J$"), ("lme", "LongMemEval$_S$")):
+    for j, (k, lab) in enumerate(labels):
+        t = S[bench][k]
+        cells = [bname if j == 0 else "", lab, sgn(t["diff"]), f"[{sgn(t['ci'][0])}, {sgn(t['ci'][1])}]", pfmt(t["p"])]
+        rows.append(" & ".join(cells) + " \\\\")
+    if bench == "locomo":
+        rows.append("\\addlinespace[2pt]")
+open(f"{OUT}/tables/stats.tex", "w").write("\n".join(rows) + "\n")
+
 json.dump(D, open(f"{OUT}/data.json", "w"), indent=1)
 
 # key numbers for the text
@@ -213,3 +379,6 @@ print("ablation", [(a["name"], round(a["locomo"][0], 1), round(a["lme"][0], 1)) 
 print("param", [(a["name"], round(a["locomo"][0], 1), round(a["lme"][0], 1)) for a in D["parametric"]])
 print("heat", D["heatmap"]["acc"])
 print("growth end", {k: round(v[-1], 1) for k, v in D["growth"]["series"].items()})
+print("open reader", [(r["name"], round(r["locomo"][0], 1), round(r["lme"][0], 1)) for r in D["open_reader"]["rows"]])
+print("relaxed lora", round(D["parametric_relaxed"]["locomo"][0], 1), round(D["parametric_relaxed"]["lme"][0], 1))
+print("stats", json.dumps(D["stats"], indent=None)[:3000])
