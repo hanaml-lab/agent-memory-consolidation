@@ -6,9 +6,9 @@ checks that the method works end to end on a problem with a known answer; it doe
 experiments.
 
 - Command: `python -m tide.demo` (settings in `configs/toy.yaml`)
-- Code: commit `83c5fe2`
+- Code: commit `eb648ed`
 - Environment: Python 3.12.13, numpy 2.5.4, PyYAML 6.0.3; Linux x86_64, Intel(R) Core(TM) i9-14900KF
-- Wall time: 70 s
+- Wall time: 34 s on a shared machine (1-minute load average 22 on 32 hardware threads); CPU time 39 s
 
 ## The toy setting
 
@@ -33,7 +33,7 @@ budget      tide   recency    random  max spent
   1.00     1.000     1.000     1.000       1.00
 eager consolidation (everything to the graph): accuracy 1.000
 hazard model AUROC for access within 16 sessions: 0.918
-done in 66.5s
+done in 33.2s
 ```
 
 ## What it shows

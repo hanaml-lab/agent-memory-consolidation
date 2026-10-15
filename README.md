@@ -40,7 +40,7 @@ budget      tide   recency    random  max spent
   1.00     1.000     1.000     1.000       1.00
 eager consolidation (everything to the graph): accuracy 1.000
 hazard model AUROC for access within 16 sessions: 0.918
-done in 66.5s
+done in 33.2s
 ```
 
 TIDE leads at middle budgets (80.9% of queries at 40% of eager's tokens, against 78.7% for random and 73.3% for recency), but at the tightest budgets it does not beat random scheduling. The toy does not test the report's headline against eager consolidation: here eager is perfect by construction. `paper/toy_run.md` records the environment and what each line shows.
